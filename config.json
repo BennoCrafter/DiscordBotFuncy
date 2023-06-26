@@ -1,0 +1,8 @@
+{
+  "channel_id_to_react": 1026400979341549598,
+  "channel_id_to_count": 1026401869624524892,
+  "reactions": ["👍", "❤️"],
+  "exp_to_level_up": 5000,
+  "rankings_file": "rankings.json",
+  "data_file": "data.json"
+}
