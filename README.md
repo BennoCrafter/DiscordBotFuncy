@@ -1,0 +1,2 @@
+# DiscordBotFuncy
+A discord bot
