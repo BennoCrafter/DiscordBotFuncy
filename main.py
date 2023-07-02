@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from DiscordLevelingCard import RankCard, Settings
 import json
+from discord.utils import get
 
 
 class Bot:
@@ -10,7 +11,7 @@ class Bot:
         self.load_config()
         self.rankings = self.load_rankings()
         self.sorted_ranks = sorted(self.rankings.values())[::-1]
-        self.sorted_useres = sorted(self.rankings, key=self.rankings.get)[::-1]
+        self.sorted_users = sorted(self.rankings, key=self.rankings.get)[::-1]
         self.card_settings = Settings(background="background.jpeg",
                                       text_color="white",
                                       bar_color="white")
@@ -21,14 +22,22 @@ class Bot:
         with open(self.config_filename) as f:
             data = json.load(f)
             self.channel_id_to_react = data["channel_id_to_react"]
+            self.channel_id_to_count = data["channel_id_to_count"]
             self.reactions = data["reactions"]
             self.rankings_file = data["rankings_file"]
             self.exp_to_level_up = data["exp_to_level_up"]
+            self.data_filename = data["data_file"]
+            self.leaderboard_ranking_names = data["leaderboard_ranking_names"]
         f.close()
 
-        with open("privat_config.json") as f:
+        with open("private_config.json") as f:
             data = json.load(f)
             self.token = data["token"]
+        f.close()
+
+        with open(self.data_filename) as f:
+            data = json.load(f)
+            self.current_count = data["current_count"]
         f.close()
 
     def load_rankings(self):
@@ -42,14 +51,25 @@ class Bot:
         with open(self.rankings_file, 'w') as file:
             json.dump(rankings, file)
         file.close()
-        self.sorted_ranks = sorted(self.rankings.values())
-        self.sorted_useres = sorted(self.rankings, key=self.rankings.get)
+        self.sorted_ranks = sorted(self.rankings.values())[::-1]
+        self.sorted_users = sorted(self.rankings, key=self.rankings.get)[::-1]
+
+    def safe_data(self, data):
+        with open(self.data_filename, 'w') as file:
+            json.dump(data, file)
+        file.close()
 
 
 if __name__ == "__main__":
     bot = commands.Bot(command_prefix='.', intents=discord.Intents().all())
     bot_info = Bot()
 
+    @bot.command()
+    async def set_current_count(ctx, new_count: int):
+        data = {"current_count": new_count}
+        bot_info.current_count = new_count
+        bot_info.safe_data(data)
+        await ctx.send(f"Succesfully changed current count to: {new_count}")
 
     @bot.command()
     async def rank(ctx, user_to_rank=None):
@@ -73,7 +93,7 @@ if __name__ == "__main__":
                          current_exp=user_ranking[1],
                          max_exp=bot_info.exp_to_level_up,
                          username=user.name,
-                         rank=int(bot_info.sorted_useres.index(user_id)) + 1)
+                         rank=int(bot_info.sorted_users.index(user_id)) + 1)
             image = await a.card3()
             await ctx.send(file=discord.File(image, "level_card.png"))
         else:
@@ -82,16 +102,17 @@ if __name__ == "__main__":
 
     @bot.command()
     async def leaderboard(ctx):
-        if len(bot_info.sorted_useres) < 10:
-            x = len(bot_info.sorted_useres)
+        if len(bot_info.sorted_users) < 10:
+            x = len(bot_info.sorted_users)
         else:
             x = 10
-        embedVar = discord.Embed(title="Rankings",
-                                 description="A leaderboard",
-                                 color=0x00ff00)
+        embedVar = discord.Embed(title="🏆 - Ranking",
+                                 description="",
+                                 color=2123412)
+        users = bot_info.sorted_users
         for i in range(x):
-            user = await bot.fetch_user(int(bot_info.sorted_useres[i]))
-            embedVar.add_field(name=f"#{i + 1}", value=user, inline=False)
+            user = await bot.fetch_user(int(users[i]))
+            embedVar.add_field(name=f"{bot_info.leaderboard_ranking_names[i+1]} ┇ {user}", value=None, inline=False)
         await ctx.send(embed=embedVar)
 
 
@@ -104,6 +125,10 @@ if __name__ == "__main__":
     async def on_member_join(member):
         channel = member.guild.get_channel(1026403341753909278)
         fmt = f"Hey {member.mention}, schön dass du Kunst Café🌷 gejoint bist! 🥳\n\nDu kannst gerne https://discord.com/channels/1026383599139835924/1026403423437987910 geben.\n\nBitte halte dich an die https://discord.com/channels/1026383599139835924/1026403289627111424\n\nViel Spaß dir 😊"
+        role_name = 'Member :)'
+        role = discord.utils.get(member.guild.roles, name=role_name)
+        if role is not None:
+            await member.add_roles(role)
         await channel.send(fmt.format(member=member))
 
 
@@ -130,9 +155,10 @@ if __name__ == "__main__":
                     await message.add_reaction(reaction)
 
         # counting
-        if message.channel.id == channel_id_to_count:
+        if message.channel.id == bot_info.channel_id_to_count:
             if int(message.content) == (bot_info.current_count + 1):
                 bot_info.current_count += 1
+                bot_info.safe_data({"current_count": bot_info.current_count})
                 await message.add_reaction("✅")
 
 bot.run(bot_info.token)

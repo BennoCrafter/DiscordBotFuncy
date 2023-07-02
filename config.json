@@ -4,5 +4,6 @@
   "reactions": ["👍", "❤️"],
   "exp_to_level_up": 5000,
   "rankings_file": "rankings.json",
-  "data_file": "data.json"
+  "data_file": "data.json",
+  "leaderboard_ranking_names": ["\uD83E\uDD47", "\uD83E\uDD48", "\uD83E\uDD49", "**4**", "**5**", "**6**", "**7**", "**8**", "**9**", "**10**"]
 }
